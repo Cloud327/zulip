@@ -550,6 +550,7 @@ class S3UploadBackend(ZulipUploadBackend):
         s3_file_name = user_avatar_path(target_user_profile)
 
         image_data = user_file.read()
+        image_data = strip_metadata(image_data)
         self.write_avatar_images(s3_file_name, target_user_profile, image_data, content_type)
 
     def delete_avatar_image(self, user: UserProfile) -> None:
@@ -592,6 +593,7 @@ class S3UploadBackend(ZulipUploadBackend):
         s3_file_name = os.path.join(self.realm_avatar_and_logo_path(user_profile.realm), "icon")
 
         image_data = icon_file.read()
+        image_data = strip_metadata(image_data)
         upload_image_to_s3(
             self.avatar_bucket,
             s3_file_name + ".original",
@@ -626,6 +628,7 @@ class S3UploadBackend(ZulipUploadBackend):
         s3_file_name = os.path.join(self.realm_avatar_and_logo_path(user_profile.realm), basename)
 
         image_data = logo_file.read()
+        image_data = strip_metadata(image_data)
         upload_image_to_s3(
             self.avatar_bucket,
             s3_file_name + ".original",
@@ -685,6 +688,7 @@ class S3UploadBackend(ZulipUploadBackend):
         )
 
         image_data = emoji_file.read()
+        image_data = strip_metadata(image_data)
         resized_image_data, is_animated, still_image_data = resize_emoji(image_data)
         upload_image_to_s3(
             self.avatar_bucket,
@@ -850,6 +854,7 @@ class LocalUploadBackend(ZulipUploadBackend):
         return delete_local_file("files", path_id)
 
     def write_avatar_images(self, file_path: str, image_data: bytes) -> None:
+
         write_local_file("avatars", file_path + ".original", image_data)
 
         resized_data = resize_avatar(image_data)
@@ -868,6 +873,7 @@ class LocalUploadBackend(ZulipUploadBackend):
         file_path = user_avatar_path(target_user_profile)
 
         image_data = user_file.read()
+        image_data = strip_metadata(image_data)
         self.write_avatar_images(file_path, image_data)
 
     def delete_avatar_image(self, user: UserProfile) -> None:
@@ -895,6 +901,7 @@ class LocalUploadBackend(ZulipUploadBackend):
     def upload_realm_icon_image(self, icon_file: IO[bytes], user_profile: UserProfile) -> None:
         upload_path = self.realm_avatar_and_logo_path(user_profile.realm)
         image_data = icon_file.read()
+        image_data = strip_metadata(image_data)
         write_local_file(upload_path, "icon.original", image_data)
 
         resized_data = resize_avatar(image_data)
@@ -915,6 +922,7 @@ class LocalUploadBackend(ZulipUploadBackend):
             original_file = "logo.original"
             resized_file = "logo.png"
         image_data = logo_file.read()
+        image_data = strip_metadata(image_data)
         write_local_file(upload_path, original_file, image_data)
 
         resized_data = resize_logo(image_data)
@@ -960,6 +968,7 @@ class LocalUploadBackend(ZulipUploadBackend):
         )
 
         image_data = emoji_file.read()
+        image_data = strip_metadata(image_data)
         resized_image_data, is_animated, still_image_data = resize_emoji(image_data)
         write_local_file("avatars", ".".join((emoji_path, "original")), image_data)
         write_local_file("avatars", emoji_path, resized_image_data)
@@ -1138,3 +1147,10 @@ def upload_export_tarball(
 
 def delete_export_tarball(export_path: str) -> Optional[str]:
     return upload_backend.delete_export_tarball(export_path)
+
+
+def strip_metadata(image_data: bytes) -> bytes:
+    image = Image.open(image_data)
+    image.__delattr__("GPSInfo")
+    image_data_without_metadata = bytes(list(image.getdata()))
+    return image_data_without_metadata
