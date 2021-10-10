@@ -487,7 +487,7 @@ class S3UploadBackend(ZulipUploadBackend):
             target_realm = user_profile.realm
         s3_file_name = self.generate_message_upload_path(str(target_realm.id), uploaded_file_name)
         url = f"/user_uploads/{s3_file_name}"
-
+        file_data = strip_metadata(file_data)
         upload_image_to_s3(
             self.uploads_bucket,
             s3_file_name,
@@ -845,7 +845,7 @@ class LocalUploadBackend(ZulipUploadBackend):
         target_realm: Optional[Realm] = None,
     ) -> str:
         path = self.generate_message_upload_path(str(user_profile.realm_id), uploaded_file_name)
-
+        file_data = strip_metadata(file_data)
         write_local_file("files", path, file_data)
         create_attachment(uploaded_file_name, path, user_profile, uploaded_file_size)
         return "/user_uploads/" + path
